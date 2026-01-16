@@ -1,0 +1,116 @@
+.nutrition-label {
+    font-family: 'Helvetica Neue', Helvetica, Arial, sans-serif;
+    padding: 20px;
+    border: 2px solid #000;
+    width: 100%;
+    background-color: white;
+    color: black;
+    margin: 0 auto;
+}
+
+.nutrition-label * {
+    box-sizing: border-box;
+}
+
+.nutrition-label {
+    max-width: fit-content;
+}
+
+.label-header {
+    border-bottom: 10px solid #000;
+    padding-bottom: 5px;
+}
+
+.label-title {
+    font-weight: 900;
+    font-size: 2.2rem;
+    margin: 0;
+    line-height: 1;
+}
+
+.serving-info {
+    font-size: 1rem;
+    font-weight: normal;
+    margin-top: 5px;
+}
+
+.calories-section {
+    border-bottom: 4px solid #000;
+    padding: 5px 0;
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-end;
+}
+
+.calories-title {
+    font-size: 1rem;
+    font-weight: bold;
+}
+
+.calories-title span {
+    display: block;
+    font-size: 0.8rem;
+    font-weight: normal;
+}
+
+.calories-value {
+    font-size: 2.5rem;
+    line-height: 1;
+    font-weight: 900;
+}
+
+.daily-value-header {
+    border-bottom: 1px solid #000;
+    text-align: right;
+    font-size: 0.8rem;
+    font-weight: bold;
+    padding: 4px 0;
+}
+
+.nutrient-row {
+    border-bottom: 1px solid #000;
+    padding: 3px 0;
+    font-size: 0.9rem;
+    display: flex;
+    justify-content: space-between;
+}
+
+.nutrient-row.indent {
+    padding-left: 20px;
+}
+
+.nutrient-row.double-indent {
+    padding-left: 40px;
+}
+
+.nutrient-row.thick-border {
+    border-bottom: 4px solid #000;
+}
+
+.nutrient-row.no-border {
+    border-bottom: none;
+}
+
+.nutrient-name {
+    font-weight: bold;
+}
+
+.nutrient-name.normal-weight {
+    font-weight: normal;
+}
+
+.dv-val {
+    float: right;
+    font-weight: bold;
+}
+
+.vitamins-section {
+    border-top: 4px solid #000;
+}
+
+.footnote {
+    font-size: 0.65rem;
+    margin-top: 10px;
+    color: #555;
+    line-height: 1.3;
+}
