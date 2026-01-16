@@ -8,9 +8,10 @@ interface AddFoodPopupProps {
   isOpen: boolean;
   onClose: () => void;
   mealType: string;
+  date: string;
 }
 
-const AddFoodPopup: React.FC<AddFoodPopupProps> = ({ isOpen, onClose, mealType }) => {
+const AddFoodPopup: React.FC<AddFoodPopupProps> = ({ isOpen, onClose, mealType, date }) => {
   const navigate = useNavigate();
   const [foodName, setFoodName] = useState("");
   const [calories, setCalories] = useState("");
@@ -38,11 +39,11 @@ const AddFoodPopup: React.FC<AddFoodPopupProps> = ({ isOpen, onClose, mealType }
         protein: Math.round(Number(protein)),
         sodium: Math.round(Number(sodium)),
         sugar: Math.round(Number(sugar)),
-        date: new Date().toLocaleDateString("en-CA"),
+        date: date,
         quantity,
       });
       onClose();
-      navigate("/dashboard");
+      navigate(date ? `/dashboard?date=${date}` : '/dashboard');
     } catch (error) {
       console.error("Error adding food:", error);
     }
@@ -66,21 +67,21 @@ const AddFoodPopup: React.FC<AddFoodPopupProps> = ({ isOpen, onClose, mealType }
         </Snackbar>
       )}
 
-    <Dialog
-      open={isOpen}
-      onClose={onClose}
-      sx={{ "& .MuiPaper-root": { borderRadius: "20px" } }} // Rounded corners
-    >
-      <DialogTitle>Add Food Item</DialogTitle>
-      <DialogContent>
-        <TextField fullWidth margin="dense" label="Food Name" value={foodName} onChange={handleChange(setFoodName)} inputProps={{ maxLength: 50 }} />
-        <TextField fullWidth margin="dense" label="Calories" type="number" value={calories} onChange={handleChange(setCalories)} />
-        <TextField fullWidth margin="dense" label="Carbs (g)" type="number" value={carbs} onChange={handleChange(setCarbs)} />
-        <TextField fullWidth margin="dense" label="Fat (g)" type="number" value={fat} onChange={handleChange(setFat)} />
-        <TextField fullWidth margin="dense" label="Protein (g)" type="number" value={protein} onChange={handleChange(setProtein)} />
-        <TextField fullWidth margin="dense" label="Sodium (mg)" type="number" value={sodium} onChange={handleChange(setSodium)} />
-        <TextField fullWidth margin="dense" label="Sugar (g)" type="number" value={sugar} onChange={handleChange(setSugar)} />
-        <TextField fullWidth margin="dense" label="Quantity (e.g. 1 cup)" value={quantity} onChange={handleChange(setQuantity)} inputProps={{ maxLength: 50 }} />
+      <Dialog
+        open={isOpen}
+        onClose={onClose}
+        sx={{ "& .MuiPaper-root": { borderRadius: "20px" } }} // Rounded corners
+      >
+        <DialogTitle>Add Food Item</DialogTitle>
+        <DialogContent>
+          <TextField fullWidth margin="dense" label="Food Name" value={foodName} onChange={handleChange(setFoodName)} inputProps={{ maxLength: 50 }} />
+          <TextField fullWidth margin="dense" label="Calories" type="number" value={calories} onChange={handleChange(setCalories)} />
+          <TextField fullWidth margin="dense" label="Carbs (g)" type="number" value={carbs} onChange={handleChange(setCarbs)} />
+          <TextField fullWidth margin="dense" label="Fat (g)" type="number" value={fat} onChange={handleChange(setFat)} />
+          <TextField fullWidth margin="dense" label="Protein (g)" type="number" value={protein} onChange={handleChange(setProtein)} />
+          <TextField fullWidth margin="dense" label="Sodium (mg)" type="number" value={sodium} onChange={handleChange(setSodium)} />
+          <TextField fullWidth margin="dense" label="Sugar (g)" type="number" value={sugar} onChange={handleChange(setSugar)} />
+          <TextField fullWidth margin="dense" label="Quantity (e.g. 1 cup)" value={quantity} onChange={handleChange(setQuantity)} inputProps={{ maxLength: 50 }} />
         </DialogContent>
         <DialogActions>
           <Button onClick={onClose}>Cancel</Button>

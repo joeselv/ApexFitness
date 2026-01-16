@@ -18,9 +18,10 @@ interface NutritionTableProps {
   foodData: DailyFoodItem[];
   summation?: boolean;
   mealName?: string;
+  onDelete?: (id: number) => void;
 }
 
-const NutritionTable: React.FC<NutritionTableProps> = ({ foodData, summation = false, mealName }) => {
+const NutritionTable: React.FC<NutritionTableProps> = ({ foodData, summation = false, mealName, onDelete }) => {
   if (foodData.length === 0) {
     return (
       <Paper sx={{ p: 2, mb: 2, borderRadius: 5, width: '98%' }}>
@@ -70,6 +71,7 @@ const NutritionTable: React.FC<NutritionTableProps> = ({ foodData, summation = f
               <TableCell align="right" sx={{ width: '10%' }}><Typography fontWeight="bold">Protein</Typography></TableCell>
               <TableCell align="right" sx={{ width: '10%' }}><Typography fontWeight="bold">Sodium</Typography></TableCell>
               <TableCell align="right" sx={{ width: '10%' }}><Typography fontWeight="bold">Sugar</Typography></TableCell>
+              {!summation && onDelete && <TableCell align="center" sx={{ width: '5%' }}><Typography fontWeight="bold">Action</Typography></TableCell>}
             </TableRow>
           </TableHead>
           <TableBody>
@@ -83,6 +85,17 @@ const NutritionTable: React.FC<NutritionTableProps> = ({ foodData, summation = f
                 <TableCell align="right" sx={{ width: '10%' }}>{Math.round(item.protein)}g</TableCell>
                 <TableCell align="right" sx={{ width: '10%' }}>{Math.round(item.sodium)}mg</TableCell>
                 <TableCell align="right" sx={{ width: '10%' }}>{Math.round(item.sugar)}g</TableCell>
+                {!summation && onDelete && (
+                  <TableCell align="center" sx={{ width: '5%' }}>
+                    <span
+                      className="material-symbols-rounded"
+                      style={{ cursor: "pointer", color: "red", userSelect: "none" }}
+                      onClick={() => onDelete(item.id)}
+                    >
+                      delete
+                    </span>
+                  </TableCell>
+                )}
               </TableRow>
             ))}
 
@@ -109,6 +122,7 @@ const NutritionTable: React.FC<NutritionTableProps> = ({ foodData, summation = f
               <TableCell align="right" sx={{ width: '10%' }}>
                 <Typography fontWeight={mealName ? 'normal' : 'bold'}>{Math.round(total.sugar)}g</Typography>
               </TableCell>
+              {!summation && onDelete && <TableCell />}
             </TableRow>
           </TableBody>
         </Table>
@@ -116,5 +130,4 @@ const NutritionTable: React.FC<NutritionTableProps> = ({ foodData, summation = f
     </Paper>
   );
 };
-
 export default NutritionTable;

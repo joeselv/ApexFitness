@@ -1,9 +1,9 @@
 {
     "scripts": {
-        "setup": "rm -f database.db && sqlite3 database.db < setup.sql",
-        "build": "rm -rf out && mkdir out && tsc",
+        "setup": "node -e \"try { require('fs').unlinkSync('database.db'); } catch (e) {}\" && sqlite3 database.db < setup.sql",
+        "build": "tsc",
         "start": "cd out && node server.js",
-	"start-forever": "cd out && pm2 start server.js",
+        "start-forever": "cd out && pm2 start server.js",
         "watch": "npm run build && tsc-watch --onSuccess \"npm run start\"",
         "test": "NODE_OPTIONS=--experimental-vm-modules jest --runInBand --rootDir=src",
         "test-data": "npm run setup && sqlite3 database.db < test-data.sql"

@@ -232,7 +232,7 @@ const LogFood = ({ onAddMealItem }: { onAddMealItem?: (foodItem: any) => void })
       });
 
       console.log("Food added successfully:", response.data);
-      navigate('/dashboard');
+      navigate(date ? `/dashboard?date=${date}` : '/dashboard');
     } catch (error) {
       console.error("Error adding food:", error);
     }
@@ -297,7 +297,7 @@ const LogFood = ({ onAddMealItem }: { onAddMealItem?: (foodItem: any) => void })
     try {
       const response = await axios.post('/api/daily_food', payload);
       console.log('Meal logged successfully:', response.data);
-      navigate(-1);
+      navigate(date ? `/dashboard?date=${date}` : '/dashboard');
     } catch (error) {
       if (axios.isAxiosError(error)) {
         console.error('Error logging meal:', error.response?.data || error.message);
@@ -541,6 +541,7 @@ const LogFood = ({ onAddMealItem }: { onAddMealItem?: (foodItem: any) => void })
             isOpen={isPopupOpen}
             onClose={() => setIsPopupOpen(false)}
             mealType={mealType ?? ""}
+            date={date ?? new Date().toLocaleDateString('en-CA')}
           />
 
           <Box

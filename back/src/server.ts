@@ -1180,6 +1180,39 @@ app.post('/api/daily_food', async (req: Request, res: Response) => {
   }
 });
 
+app.delete('/api/daily_food/:id', async (req: Request, res: Response) => {
+  const user_id = await getUserIdFromCookies(req.cookies.token);
+  const dailyFoodId = parseInt(req.params.id, 10);
+
+  if (!user_id) {
+    return res.status(401).json({ error: 'Not authenticated' });
+  }
+
+  if (isNaN(dailyFoodId)) {
+    return res.status(400).json({ error: 'Invalid Daily Food ID' });
+  }
+
+  try {
+    const foodItem = await db.get(
+      'SELECT * FROM daily_food WHERE id = ? AND user_id = ?',
+      [dailyFoodId, user_id]
+    );
+
+    if (!foodItem) {
+      return res
+        .status(404)
+        .json({ error: 'Daily food item not found or does not belong to the user' });
+    }
+
+    await db.run('DELETE FROM daily_food WHERE id = ?', [dailyFoodId]);
+
+    return res.status(200).json({ message: 'Daily food item deleted successfully' });
+  } catch (error) {
+    console.error('Error deleting daily food item:', error);
+    return res.status(500).json({ error: 'Internal Server Error' });
+  }
+});
+
 app.get('/api/daily_food/:id', async (req: Request, res: Response) => {
   const user_id = await getUserIdFromCookies(req.cookies.token);
   const dailyFoodId = parseInt(req.params.id, 10);

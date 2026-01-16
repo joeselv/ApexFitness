@@ -22,7 +22,7 @@ import { Snackbar, Alert } from '@mui/material';
 interface DailyFoodItem {
   id: number;
   name: string;
-  meal_type: string;
+  mealPlanType: string;
   quantity: string;
   calories: number;
   carbs: number;
@@ -68,7 +68,7 @@ function NewMealPlan() {
   }
 
   const handleFoodAdd = (newFood: DailyFoodItem) => {
-    const { dayOfWeek, meal_type, ...foodItem } = newFood;
+    const { dayOfWeek, mealPlanType, ...foodItem } = newFood;
     const normalizedDay = dayOfWeek.toLowerCase() as keyof UIFormattedMealPlan;
 
     setMealPlan((prevMealPlan) => {
@@ -79,20 +79,11 @@ function NewMealPlan() {
 
       const updatedDayMealPlan = { ...prevMealPlan[normalizedDay] };
 
-      const normalizedMealPlanType = String(meal_type).toLowerCase() as keyof UIDailyMeal;
+      const normalizedMealPlanType = String(mealPlanType).toLowerCase() as keyof UIDailyMeal;
 
       updatedDayMealPlan[normalizedMealPlanType] = [
         ...(updatedDayMealPlan[normalizedMealPlanType] || []),
-        {
-          ...foodItem,
-          meal_type: normalizedMealPlanType,
-          calories: String(foodItem.calories),
-          carbs: String(foodItem.carbs),
-          fat: String(foodItem.fat),
-          protein: String(foodItem.protein),
-          sodium: String(foodItem.sodium),
-          sugar: String(foodItem.sugar),
-        },
+        { ...foodItem, mealPlanType: normalizedMealPlanType },
       ];
 
       console.log(updatedDayMealPlan);
