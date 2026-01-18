@@ -92,10 +92,9 @@ const AuthModal: React.FC<AuthModalProps> = ({ open, onClose, type }) => {
     } catch (err) {
       console.log(err);
       const axiosError = err as AxiosError;
-      console.log(axiosError.status === 404);
-      console.log(axiosError.status == 404);
-      if (axiosError.status === 404) {
-        setError(['There is no account with that email.']);
+      const status = axiosError.response?.status;
+      if (status === 404 || status === 400) {
+        setError(['Invalid username or password.']);
       } else {
         setError(getAxiosErrorMessages(err) || ['Something went wrong.']);
       }
