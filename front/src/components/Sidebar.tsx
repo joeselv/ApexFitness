@@ -25,10 +25,7 @@ function Sidebar() {
 
   const menuItems = [
     { to: '/dashboard', icon: 'donut_small', label: 'Dashboard' },
-    { to: '/meals', icon: 'stockpot', label: 'Meal Plans' },
-    { to: '/workouts', icon: 'exercise', label: 'Workouts' },
     { to: '/goals', icon: 'flag', label: 'My Goals' },
-    { to: '/meal-plans', icon: 'explore', label: 'Explore' },
   ];
 
   return (

@@ -56,6 +56,7 @@ const WeightMetricsUI: React.FC = () => {
     tdee: null,
     dailyIntake: null,
     daysToGoal: null,
+    macros: null,
   });
 
   const [loading, setLoading] = useState<boolean>(true);
@@ -133,7 +134,7 @@ const WeightMetricsUI: React.FC = () => {
       );
       setCalorieResults(results);
     } else {
-      setCalorieResults({ bmr: null, tdee: null, dailyIntake: null, daysToGoal: null });
+      setCalorieResults({ bmr: null, tdee: null, dailyIntake: null, daysToGoal: null, macros: null });
     }
   }, [metrics]);
 
@@ -163,7 +164,15 @@ const WeightMetricsUI: React.FC = () => {
 
   const handleSave = async () => {
     try {
-      const payload = { ...metrics };
+      const payload: any = { ...metrics };
+      // Include calculated targets if they exist
+      if (calorieResults.dailyIntake && calorieResults.macros) {
+        payload.target_calories = Math.round(calorieResults.dailyIntake);
+        payload.target_protein = calorieResults.macros.protein;
+        payload.target_fat = calorieResults.macros.fat;
+        payload.target_carbs = calorieResults.macros.carbs;
+      }
+
       const response = await axios.patch('/api/user/metrics', payload, { withCredentials: true, });
       if (response.status === 200) {
         console.log('Metrics updated successfully!', response.data);
@@ -275,28 +284,43 @@ const WeightMetricsUI: React.FC = () => {
                 </IconButton>
               </Tooltip>
             </Typography>
-            <Typography>
+            <Typography
+              sx={{
+                fontWeight: 'bold',
+                fontSize: '1.2rem',
+                mt: 1,
+                mb: 1,
+                color: '#3498db'
+              }}
+            >
               Daily Intake: {calorieResults.dailyIntake.toFixed(0)} calories{' '}
               {getGoalType() !== 'maintain' && (
                 <>
-                  ({getGoalType() === 'gain' ? '250-calorie surplus' : '500-calorie deficit'})
+                  ({getGoalType() === 'gain' ? '+250' : '-500'})
                 </>
               )}
-              <Tooltip
-                title={
-                  getGoalType() === 'lose'
-                    ? 'Recommended daily calorie intake to achieve a 500-calorie deficit for weight loss.'
-                    : getGoalType() === 'gain'
-                      ? 'Recommended daily calorie intake to achieve a 250-calorie surplus for muscle gain.'
-                      : 'Recommended daily calorie intake to maintain your current weight.'
-                }
-
-              >
-                <IconButton size="small" sx={{ ml: 0.5 }}>
-                  <InfoOutlinedIcon fontSize="small" />
-                </IconButton>
-              </Tooltip>
             </Typography>
+
+            {calorieResults.macros && (
+              <Box sx={{ mt: 2, mb: 2 }}>
+                <Typography variant="subtitle1" sx={{ fontWeight: 'bold' }}>Target Macros</Typography>
+                <Box sx={{ display: 'flex', justifyContent: 'space-around', mt: 1 }}>
+                  <Box>
+                    <Typography variant="body2" color="textSecondary">Protein</Typography>
+                    <Typography variant="h6" color="#e74c3c">{calorieResults.macros.protein}g</Typography>
+                  </Box>
+                  <Box>
+                    <Typography variant="body2" color="textSecondary">Carbs</Typography>
+                    <Typography variant="h6" color="#f1c40f">{calorieResults.macros.carbs}g</Typography>
+                  </Box>
+                  <Box>
+                    <Typography variant="body2" color="textSecondary">Fat</Typography>
+                    <Typography variant="h6" color="#9b59b6">{calorieResults.macros.fat}g</Typography>
+                  </Box>
+                </Box>
+              </Box>
+            )}
+
             <Typography>
               Days to Goal: {calorieResults.daysToGoal?.toFixed(0)}
               {getGoalType() === 'gain' && (
@@ -477,7 +501,7 @@ const WeightMetricsUI: React.FC = () => {
             Weight Progress
           </Typography>
           {progressData.length > 0 ? (
-            <Box sx={{ height: '30%', minHeight:250, width: '100%' }}>
+            <Box sx={{ height: '30%', minHeight: 250, width: '100%' }}>
               <Line
                 data={chartData}
                 options={{

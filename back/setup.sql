@@ -9,7 +9,11 @@ CREATE TABLE users (
     height INTEGER,
     age INTEGER,
     gender VARCHAR(10),
-    activity_level VARCHAR(25)
+    activity_level VARCHAR(25),
+    target_calories INTEGER,
+    target_protein INTEGER,
+    target_fat INTEGER,
+    target_carbs INTEGER
 );
 
 -- DailyFood Table
@@ -45,55 +49,6 @@ CREATE TABLE meal_items (
     PRIMARY KEY (meal_id, food_id),
     FOREIGN KEY (meal_id) REFERENCES meals(id) ON DELETE CASCADE,
     FOREIGN KEY (food_id) REFERENCES daily_food(id) ON DELETE CASCADE
-);
-
--- Meal Plans Table
-CREATE TABLE meal_plans ( 
-    id INTEGER PRIMARY KEY AUTOINCREMENT, 
-    name VARCHAR(50) NOT NULL,
-    is_private BOOLEAN NOT NULL DEFAULT 1
-);
-
--- Meal Plan Items Join Table (for list of meal IDs in a meal plan)
-CREATE TABLE meal_plan_items (
-    meal_plan_id INTEGER NOT NULL,
-    meal_id INTEGER,
-    food_id INTEGER,
-    day_of_week VARCHAR(15) NOT NULL,
-    PRIMARY KEY (meal_plan_id, meal_id, day_of_week),
-    FOREIGN KEY (meal_plan_id) REFERENCES meal_plans(id) ON DELETE CASCADE,
-    FOREIGN KEY (meal_id) REFERENCES meals(id) ON DELETE CASCADE
-    FOREIGN KEY (food_id) REFERENCES daily_food(id) ON DELETE CASCADE
-);
-
--- Workout Table
-CREATE TABLE workouts (
-    id INTEGER PRIMARY KEY AUTOINCREMENT,
-    user_id VARCHAR(50) NOT NULL,
-    name VARCHAR(255) NOT NULL,
-    date TEXT NOT NULL,
-    FOREIGN KEY(user_id) REFERENCES users(id) ON DELETE CASCADE
-);
-
--- Exercises Table
-CREATE TABLE exercises (  
-    id INTEGER PRIMARY KEY AUTOINCREMENT,
-    name_of_workout VARCHAR(255) NOT NULL,
-    muscle_worked VARCHAR(255),
-    duration INTEGER, -- duration in minutes
-    sets INTEGER,
-    reps INTEGER,
-    weight INTEGER,
-    calories_burned, INTEGER
-);
-
--- Workout Exercises Join Table (for list of exercise IDs in a workout)
-CREATE TABLE workout_exercises (
-    workout_id INTEGER NOT NULL,
-    exercise_id INTEGER NOT NULL,
-    PRIMARY KEY (workout_id, exercise_id),
-    FOREIGN KEY (workout_id) REFERENCES workouts(id) ON DELETE CASCADE,
-    FOREIGN KEY (exercise_id) REFERENCES exercises(id) ON DELETE CASCADE
 );
 
 -- User Weight History Table

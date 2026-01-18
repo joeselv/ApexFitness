@@ -5,7 +5,6 @@ import * as url from 'url';
 import {
   DBDailyFoodItem,
   UIDailyMeal,
-  UIFormattedMealPlan,
   User,
 } from '@apex/shared';
 import * as crypto from 'crypto';
@@ -66,7 +65,6 @@ async function getUserIdFromCookies(
   token: string | undefined
 ): Promise<string | null> {
   // ! NEED TO AWAIT WHEN CALLING THIS (returns a promise)
-  // * Used for meal_plan when a user wants to query all of their meal_plans
   if (!token) {
     console.log('No token provided');
     return null;
@@ -343,334 +341,6 @@ app.get('/api/auth/check', (req, res) => {
   return res.json({ loggedIn: true });
 });
 
-app.post('/api/meal_plan', async (req, res) => {
-  console.log('body:' + JSON.stringify(req.body));
-  const { name, isPrivate } = req.body;
-  const validateRequest = () => {
-    if (!req.body || Object.keys(req.body).length === 0)
-      return 'Name and isPrivate required';
-    if (isPrivate === undefined || isPrivate === null)
-      return 'isPrivate required';
-    if (!name) return 'Name required';
-    return null;
-  };
-
-  const validationError = validateRequest();
-  if (validationError) {
-    console.log(validationError);
-    return res.status(400).json({ error: validationError });
-  }
-  try {
-    const statement = await db.prepare(
-      'INSERT INTO meal_plans (name, is_private) VALUES (?, ?)'
-    );
-    const result = await statement.run(name, isPrivate);
-
-    console.log('Inserted Meal Plan ID:', result.lastID);
-    return res.json({
-      message: 'Meal plan created successful',
-      mealID: result.lastID,
-    });
-  } catch (error) {
-    console.log('Insert error:', error);
-    return res.status(500).json({ error: 'Internal server error' });
-  }
-});
-
-app.put('/api/meal_plan', async (req, res) => {
-  // TODO: make it so that you verify the user and 403?
-  const { id, name, isPrivate } = req.body;
-
-  const validateRequest = () => {
-    if (!req.body || Object.keys(req.body).length === 0) {
-      return 'Meal Plan ID, Name and isPrivate values are required';
-    }
-    if (!id) return 'Meal Plan ID required';
-    if (isPrivate === undefined || isPrivate === null)
-      return 'isPrivate required';
-    return null;
-  };
-
-  const validationError = validateRequest();
-  if (validationError) {
-    console.log(validationError);
-    return res.status(400).json({ error: validationError });
-  }
-
-  try {
-    // Check if user exists
-    const existingMealPlan = await db.get(
-      'SELECT * FROM meal_plans WHERE id = ?',
-      [id]
-    );
-    if (!existingMealPlan) {
-      return res
-        .status(404)
-        .json({ error: `No meal plan found with ID ${id}` });
-    }
-
-    // Prepare the update query
-    const statement = await db.prepare(
-      `UPDATE meal_plans 
-       SET is_private = ? 
-       WHERE id = ?`
-    );
-
-    await statement.run(isPrivate, id);
-
-    return res
-      .status(200)
-      .json({ message: `Meal Plan ${id} updated successfully!` });
-  } catch (error) {
-    console.error('Error updating meal plan:', error);
-    return res.status(500).json({ error: 'Internal Server Error' });
-  }
-});
-
-app.get('/api/meal_plan/:id', async (req, res) => {
-  let result: {
-    day_of_week: string;
-    daily_foods: string;
-    name: string;
-    user_id: string;
-    is_private: number; // ? Sqlite stores booleans as bit values (I think?)
-  }[];
-  const mealPlanId = parseInt(req.params.id, 10);
-  if (isNaN(mealPlanId)) {
-    return res.status(400).json({ error: 'Invalid Meal Plan ID' });
-  }
-
-  const query = `
-      SELECT 
-          mpi.day_of_week,
-          mp.name AS name,
-          df.user_id,
-          mp.is_private,
-          json_group_array(
-              json_object(
-                  'name', df.name,
-                  'meal_type', df.meal_type,
-                  'calories', df.calories,
-                  'carbs', df.carbs,
-                  'fat', df.fat,
-                  'protein', df.protein,
-                  'sodium', df.sodium,
-                  'sugar', df.sugar
-              )
-          ) AS daily_foods
-      FROM meal_plans mp
-      LEFT JOIN meal_plan_items mpi ON mp.id = mpi.meal_plan_id
-      LEFT JOIN daily_food df ON mpi.food_id = df.id  -- This is the missing link
-      WHERE mp.id = ?
-      GROUP BY mpi.day_of_week;
-  `;
-
-  try {
-    result = await db.all(query, [mealPlanId]);
-
-    const userId = await getUserIdFromCookies(req.cookies.token);
-
-    console.log(userId, result[0].user_id);
-    if (result[0].is_private === 1 && userId !== result[0].user_id) {
-      return res.status(403).json({ error: 'Forbidden' });
-    }
-    if (!result || result.length === 0) {
-      return res.json({ name: '', result: {} });
-    }
-
-    const formattedMealPlan: Partial<UIFormattedMealPlan> = {};
-    const mealPlanName = result[0].name;
-
-    result.forEach((row) => {
-      const dayOfWeek =
-        row.day_of_week.toLowerCase() as keyof UIFormattedMealPlan;
-
-      if (!formattedMealPlan[dayOfWeek]) {
-        formattedMealPlan[dayOfWeek] = {
-          breakfast: [],
-          lunch: [],
-          dinner: [],
-          snack: [],
-        };
-      }
-
-      const dailyFoods = row.daily_foods ? JSON.parse(row.daily_foods) : [];
-      dailyFoods.forEach((food: any) => {
-        let mealType = food.meal_type.startsWith('meal-plan-item-')
-          ? food.meal_type.replace('meal-plan-item-', '').toLowerCase()
-          : null;
-
-        const validMealTypes: (keyof UIDailyMeal)[] = [
-          'breakfast',
-          'lunch',
-          'dinner',
-          'snack',
-        ];
-
-        if (
-          mealType &&
-          validMealTypes.includes(mealType as keyof UIDailyMeal)
-        ) {
-          if (!formattedMealPlan[dayOfWeek]![mealType as keyof UIDailyMeal]) {
-            formattedMealPlan[dayOfWeek]![mealType as keyof UIDailyMeal] = [];
-          }
-          formattedMealPlan[dayOfWeek]![mealType as keyof UIDailyMeal]!.push(
-            food
-          );
-        } else {
-          console.warn(`Skipping invalid meal type: ${food.meal_type}`);
-        }
-      });
-    });
-
-    return res.json({ name: mealPlanName, result: formattedMealPlan });
-  } catch (err: any) {
-    console.error(err);
-    return res.status(500).json({ error: err.toString() });
-  }
-});
-
-app.get('/api/user/meal_plan', async (req, res) => {
-  const userId = await getUserIdFromCookies(req.cookies.token);
-
-  if (!userId) {
-    return res.status(400).json({ error: 'Invalid User ID' });
-  }
-
-  const query = `
-    SELECT DISTINCT 
-      mp.id AS meal_plan_id,
-      mp.is_private,
-      mpi.day_of_week,
-      json_group_array(
-        json_object(
-          'name', df.name,
-          'meal_type', df.meal_type,
-          'calories', df.calories,
-          'carbs', df.carbs,
-          'fat', df.fat,
-          'protein', df.protein,
-          'sodium', df.sodium,
-          'sugar', df.sugar
-        )
-      ) AS daily_foods
-    FROM meal_plans mp
-    LEFT JOIN meal_plan_items mpi ON mp.id = mpi.meal_plan_id
-    LEFT JOIN daily_food df ON mpi.food_id = df.id  -- Join on food_id directly
-    WHERE df.user_id = ?
-    GROUP BY mp.id, mpi.day_of_week;
-  `;
-
-  try {
-    const result = await db.all(query, [userId]);
-
-    if (!result || result.length === 0) {
-      return res.json({ meal_plans: [] });
-    }
-
-    const formattedMealPlans: {
-      meal_plan_id: number;
-      name: string;
-      is_private: boolean;
-      plan: Partial<UIFormattedMealPlan>;
-    }[] = [];
-
-    const mealPlansMap = new Map<number, Partial<UIFormattedMealPlan>>();
-
-    result.forEach((row) => {
-      const mealPlanId = row.meal_plan_id;
-      const mealPlanName = row.meal_plan_name;
-      const isPrivate = row.is_private === 1;
-      const dayOfWeek =
-        row.day_of_week.toLowerCase() as keyof UIFormattedMealPlan;
-
-      if (!mealPlansMap.has(mealPlanId)) {
-        mealPlansMap.set(mealPlanId, {});
-        formattedMealPlans.push({
-          meal_plan_id: mealPlanId,
-          name: mealPlanName,
-          is_private: isPrivate,
-          plan: mealPlansMap.get(mealPlanId)!,
-        });
-      }
-
-      const mealPlan = mealPlansMap.get(mealPlanId)!;
-
-      if (!mealPlan[dayOfWeek]) {
-        mealPlan[dayOfWeek] = {
-          breakfast: [],
-          lunch: [],
-          dinner: [],
-          snack: [],
-        };
-      }
-
-      const dailyFoods = row.daily_foods ? JSON.parse(row.daily_foods) : [];
-      dailyFoods.forEach((food: any) => {
-        let mealType = food.meal_type.startsWith('meal-plan-item-')
-          ? food.meal_type.replace('meal-plan-item-', '').toLowerCase()
-          : null;
-
-        const validMealTypes: (keyof UIDailyMeal)[] = [
-          'breakfast',
-          'lunch',
-          'dinner',
-          'snack',
-        ];
-
-        if (
-          mealType &&
-          validMealTypes.includes(mealType as keyof UIDailyMeal)
-        ) {
-          if (!mealPlan[dayOfWeek]![mealType as keyof UIDailyMeal]) {
-            mealPlan[dayOfWeek]![mealType as keyof UIDailyMeal] = [];
-          }
-
-          (mealPlan[dayOfWeek]![mealType as keyof UIDailyMeal] as any[]).push(
-            food
-          );
-        } else {
-          console.warn(`Skipping invalid meal type: ${food.meal_type}`);
-        }
-      });
-    });
-
-    return res.json({ meal_plans: formattedMealPlans });
-  } catch (err: any) {
-    console.error(err);
-    return res.status(500).json({ error: err.toString() });
-  }
-});
-
-app.get('/api/meals/:id', async (req, res) => {
-  // TODO: work on permissions
-  // ! This route might not actually be valid... Made this just to test meals/inner joins
-  let result: DBDailyFoodItem[];
-  const mealId = parseInt(req.params.id, 10);
-  if (isNaN(mealId)) {
-    return res.status(400).json({ error: 'Invalid Meal Id' });
-  }
-
-  const query = `
-    SELECT df.*
-    FROM daily_food df
-    INNER JOIN meal_items mi ON df.id = mi.food_id
-    INNER JOIN meals m ON mi.meal_id = m.id
-    WHERE m.id = ?;
-  `;
-  try {
-    result = await db.all(query, [mealId]);
-    if (result.length === 0) {
-      return res.status(404).json({ error: 'No meals found' });
-    }
-  } catch (err) {
-    const error = err as object;
-    return res.status(500).json({ error: error.toString() });
-  }
-
-  return res.json({ result });
-});
-
 // Replace previous API calls with OAuth2 authorization header
 app.get(
   '/api/search-food',
@@ -702,23 +372,6 @@ app.get(
     }
   }
 );
-
-app.get('/api/meal_plans', async (req, res) => {
-  let result;
-  try {
-    result = await db.all('SELECT * FROM meal_plans WHERE is_private = 0;');
-
-    if (!result || result.length === 0) {
-      console.log('No public meal plans found.');
-      return res.json({ result: [] });
-    }
-
-    return res.json({ result });
-  } catch (err: any) {
-    console.error('Error in /meal_plans:', err);
-    return res.status(500).json({ error: err.toString() });
-  }
-});
 
 app.get(
   '/api/food-detail',
@@ -797,7 +450,7 @@ app.patch('/api/user/metrics', async (req: Request, res: Response) => {
     }
 
     // Extract only the body metrics from the request body
-    const { current_weight, goal_weight, height, age, gender, activity_level } =
+    const { current_weight, goal_weight, height, age, gender, activity_level, target_calories, target_protein, target_fat, target_carbs } =
       req.body;
 
     // Update the user record with new metrics, preserving fields that are not provided
@@ -809,7 +462,11 @@ app.patch('/api/user/metrics', async (req: Request, res: Response) => {
          height = COALESCE(?, height),
          age = COALESCE(?, age),
          gender = COALESCE(?, gender),
-         activity_level = COALESCE(?, activity_level)
+         activity_level = COALESCE(?, activity_level),
+         target_calories = COALESCE(?, target_calories),
+         target_protein = COALESCE(?, target_protein),
+         target_fat = COALESCE(?, target_fat),
+         target_carbs = COALESCE(?, target_carbs)
        WHERE email = ?`,
       current_weight,
       goal_weight,
@@ -817,6 +474,10 @@ app.patch('/api/user/metrics', async (req: Request, res: Response) => {
       age,
       gender,
       activity_level,
+      target_calories,
+      target_protein,
+      target_fat,
+      target_carbs,
       userEmail
     );
 
@@ -927,173 +588,6 @@ app.get('/api/weight_history', async (req: Request, res: Response) => {
   } catch (error) {
     console.error('Error fetching weight history:', error);
     return res.status(500).json({ error: 'Internal Server Error' });
-  }
-});
-
-// Workouts Endpoints
-app.post('/api/workouts', async (req, res) => {
-  const { name, date, exercises } = req.body;
-  const userId = await getUserIdFromCookies(req.cookies.token);
-
-  if (!userId) {
-    return res.status(401).json({ error: 'Not authenticated' });
-  }
-
-  if (!name || !date) {
-    return res.status(400).json({ error: 'Name and date are required' });
-  }
-
-  try {
-    const workoutStatement = await db.prepare(
-      'INSERT INTO workouts (user_id, name, date) VALUES (?, ?, ?)'
-    );
-    const workoutResult = await workoutStatement.run(userId, name, date);
-    const workoutId = workoutResult.lastID;
-
-    if (exercises && Array.isArray(exercises)) {
-      for (const exercise of exercises) {
-        let exerciseStatement;
-        let exerciseResult;
-        if (exercise.hasOwnProperty('caloriesBurned')) {
-          exerciseStatement = await db.prepare(
-            'INSERT INTO exercises (name_of_workout, duration, calories_burned) VALUES (?, ?, ?)'
-          );
-          exerciseResult = await exerciseStatement.run(
-            exercise.workoutType,
-            exercise.duration,
-            exercise.caloriesBurned
-          );
-        } else {
-          exerciseStatement = await db.prepare(
-            'INSERT INTO exercises (name_of_workout, sets, reps, weight) VALUES (?, ?, ?, ?)'
-          );
-          exerciseResult = await exerciseStatement.run(
-            exercise.workoutType,
-            exercise.sets,
-            exercise.reps,
-            exercise.weight
-          );
-        }
-
-        const exerciseId = exerciseResult.lastID;
-
-        const workoutExerciseStatement = await db.prepare(
-          'INSERT INTO workout_exercises (workout_id, exercise_id) VALUES (?, ?)'
-        );
-        await workoutExerciseStatement.run(workoutId, exerciseId);
-      }
-    }
-
-    return res.json({
-      message: 'Workout created successfully',
-      workoutId: workoutId,
-    });
-  } catch (error) {
-    console.error('Error creating workout:', error);
-    return res.status(500).json({ error: 'Internal server error' });
-  }
-});
-
-app.get('/api/workouts', async (req, res) => {
-  const userId = await getUserIdFromCookies(req.cookies.token);
-
-  if (!userId) {
-    return res.status(401).json({ error: 'Not authenticated' });
-  }
-
-  try {
-    const workouts = await db.all('SELECT * FROM workouts WHERE user_id = ?', [
-      userId,
-    ]);
-    return res.json({ workouts });
-  } catch (error) {
-    console.error('Error retrieving workouts:', error);
-    return res.status(500).json({ error: 'Internal server error' });
-  }
-});
-
-app.post('/api/workouts/:workoutId/exercises', async (req, res) => {
-  const { name_of_workout, muscle_worked, duration, sets, reps, weight } =
-    req.body;
-  const workoutId = parseInt(req.params.workoutId, 10);
-
-  if (isNaN(workoutId)) {
-    return res.status(400).json({ error: 'Invalid workout ID' });
-  }
-
-  if (!name_of_workout) {
-    return res.status(400).json({ error: 'Exercise name is required' });
-  }
-
-  try {
-    const exerciseStatement = await db.prepare(
-      'INSERT INTO exercises (name_of_workout, muscle_worked, duration, sets, reps, weight) VALUES (?, ?, ?, ?, ?, ?)'
-    );
-    const exerciseResult = await exerciseStatement.run(
-      name_of_workout,
-      muscle_worked,
-      duration,
-      sets,
-      reps,
-      weight
-    );
-
-    const workoutExerciseStatement = await db.prepare(
-      'INSERT INTO workout_exercises (workout_id, exercise_id) VALUES (?, ?)'
-    );
-    await workoutExerciseStatement.run(workoutId, exerciseResult.lastID);
-
-    return res.json({
-      message: 'Exercise added to workout successfully',
-    });
-  } catch (error) {
-    console.error('Error adding exercise to workout:', error);
-    return res.status(500).json({ error: 'Internal server error' });
-  }
-});
-
-app.get('/api/workouts/:workoutId/exercises', async (req, res) => {
-  const workoutId = parseInt(req.params.workoutId, 10);
-
-  if (isNaN(workoutId)) {
-    return res.status(400).json({ error: 'Invalid workout ID' });
-  }
-
-  try {
-    const exercises = await db.all(
-      `SELECT e.* FROM exercises e JOIN workout_exercises we ON e.id = we.exercise_id WHERE we.workout_id = ?`,
-      [workoutId]
-    );
-    return res.json({ exercises });
-  } catch (error) {
-    console.error('Error retrieving exercises:', error);
-    return res.status(500).json({ error: 'Internal server error' });
-  }
-});
-
-app.get('/api/calories-burned', async (req: Request, res: Response) => {
-  try {
-    // console.log('Burn handler');
-    const activity = req.query.activity as string;
-    if (!activity) {
-      return res.status(400).json({ error: 'Activity parameter is required' });
-    }
-
-    // Actual API call
-    const api_url = `${BURN_API_URL}?activity=${encodeURIComponent(activity)}`;
-
-    const response = await axios.get(api_url, {
-      headers: { 'X-Api-Key': process.env.BURN_API_KEY },
-    });
-
-    if (response.status === 200) {
-      res.json(response.data);
-    } else {
-      res.status(response.status).json({ error: response.data });
-    }
-  } catch (error) {
-    console.error('Error fetching calories burned data:', error);
-    res.status(500).json({ error: 'Failed to fetch calories burned data' });
   }
 });
 
@@ -1243,49 +737,6 @@ app.get('/api/daily_food/:id', async (req: Request, res: Response) => {
   }
 });
 
-app.post('/api/meals', async (req: Request, res: Response) => {
-  const user_id = await getUserIdFromCookies(req.cookies.token);
-  const { mealPlanName, foodItems } = req.body;
-
-  if (
-    !mealPlanName ||
-    !foodItems ||
-    !Array.isArray(foodItems) ||
-    foodItems.length === 0
-  ) {
-    return res
-      .status(400)
-      .json({ error: 'Meal name and food items are required' });
-  }
-
-  try {
-    const statement = await db.prepare(
-      'INSERT INTO meals (name, date, user_id) VALUES (?, ?, ?)'
-    );
-    const result = await statement.run(
-      mealPlanName,
-      new Date().toISOString(),
-      user_id
-    );
-    const meal_id = result.lastID;
-
-    for (const foodItem of foodItems) {
-      const food_id = foodItem.id;
-      const mealItemStatement = await db.prepare(
-        'INSERT INTO meal_items (meal_id, food_id) VALUES (?, ?)'
-      );
-      await mealItemStatement.run(meal_id, food_id);
-    }
-
-    return res
-      .status(201)
-      .json({ message: 'Meal created successfully', meal_id });
-  } catch (error) {
-    console.error('Error creating meal:', error);
-    return res.status(500).json({ error: 'Internal Server Error' });
-  }
-});
-
 app.get('/api/meals', async (req: Request, res: Response) => {
   const user_id = await getUserIdFromCookies(req.cookies.token);
 
@@ -1336,61 +787,6 @@ app.get('/api/meals', async (req: Request, res: Response) => {
   } catch (error) {
     console.error('Error fetching meals:', error);
     return res.status(500).json({ error: 'Internal Server Error' });
-  }
-});
-
-app.post('/api/meal-plans', async (req, res) => {
-  const user_id = await getUserIdFromCookies(req.cookies.token);
-  const { name, is_private, meals } = req.body;
-
-  if (!user_id || !name || !meals) {
-    return res.status(400).json({ error: 'Missing required fields' });
-  }
-
-  try {
-    const result = await db.run(
-      'INSERT INTO meal_plans (name, is_private) VALUES (?, ?)',
-      [name, is_private ? 1 : 0]
-    );
-    const mealPlanId = result.lastID;
-
-    for (const [day, mealTypes] of Object.entries(meals)) {
-      for (const [mealType, foods] of Object.entries(
-        mealTypes as { [key: string]: any }
-      )) {
-        for (const food of foods) {
-          const foodResult = await db.run(
-            `INSERT INTO daily_food (user_id, meal_type, name, quantity, calories, carbs, fat, protein, sodium, sugar, date)
-                   VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, date('now'))`,
-            [
-              user_id,
-              `meal-plan-item-${mealType}`,
-              food.name,
-              food.quantity,
-              food.calories,
-              food.carbs,
-              food.fat,
-              food.protein,
-              food.sodium,
-              food.sugar,
-            ]
-          );
-          const foodId = foodResult.lastID;
-
-          await db.run(
-            'INSERT INTO meal_plan_items (meal_plan_id, food_id, day_of_week) VALUES (?, ?, ?)',
-            [mealPlanId, foodId, day]
-          );
-        }
-      }
-    }
-
-    res
-      .status(201)
-      .json({ message: 'Meal plan created successfully', mealPlanId });
-  } catch (error) {
-    console.error(error);
-    res.status(500).json({ error: 'Internal server error' });
   }
 });
 

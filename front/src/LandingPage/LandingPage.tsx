@@ -1,5 +1,5 @@
-import React, { useState, useEffect } from 'react';
-import { Box, Button, Typography, Card, CardContent, Container, useTheme } from '@mui/material';
+import React, { useState } from 'react';
+import { Box, Button, Typography, Card, CardContent, Container } from '@mui/material';
 import { Line } from 'react-chartjs-2';
 import {
   Chart,
@@ -12,7 +12,7 @@ import {
 } from 'chart.js';
 import { CircularProgressbar, buildStyles } from 'react-circular-progressbar';
 import 'react-circular-progressbar/dist/styles.css';
-import { motion, useMotionValue, useSpring } from 'framer-motion';
+import { motion } from 'framer-motion';
 import AuthModal from './AuthModal';
 
 // Register Chart.js components
